@@ -1,0 +1,2 @@
+D:/vs/assignment 2/resourcemanager/android/app/.cxx/Debug/1296y6l5/x86_64/CMakeFiles/edit_cache.dir
+D:/vs/assignment 2/resourcemanager/android/app/.cxx/Debug/1296y6l5/x86_64/CMakeFiles/rebuild_cache.dir

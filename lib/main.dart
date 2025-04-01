@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
 void main() => runApp(const MyApp());
 
@@ -9,7 +13,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        appBar: AppBar(title: const Text('Comic Library')),
+        appBar: AppBar(title: Text('Comic Library')),
         body: const ComicLibrary(),
       ),
     );
@@ -24,16 +28,59 @@ class ComicLibrary extends StatefulWidget {
 }
 
 class _ComicLibraryState extends State<ComicLibrary> {
-  // In-memory data, would be loaded from a JSON file in a real app
-  List<Map<String, String>> comics = [];
+  List<Map<String, dynamic>> comics = [];
 
   // Controllers for text input
   final TextEditingController titleController = TextEditingController();
   final TextEditingController authorController = TextEditingController();
   final TextEditingController genreController = TextEditingController();
 
-  // Popup to add comic
-  void _showAddComicDialog() {
+  // Picked image path
+  String? imagePath;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadComics();
+  }
+
+  Future<void> _loadComics() async {
+    final directory = await getApplicationDocumentsDirectory();
+    final file = File('${directory.path}/comics.json');
+
+    if (file.existsSync()) {
+      final String content = await file.readAsString();
+      final List<dynamic> jsonData = json.decode(content);
+      setState(() {
+        comics = jsonData
+            .map((comic) => {
+                  'title': comic['title'],
+                  'author': comic['author'],
+                  'genre': comic['genre'],
+                  'image': comic['image'], // Image path
+                })
+            .toList();
+      });
+    }
+  }
+
+  Future<void> _saveComics() async {
+    final directory = await getApplicationDocumentsDirectory();
+    final file = File('${directory.path}/comics.json');
+
+    final String jsonContent = json.encode(comics);
+    await file.writeAsString(jsonContent);
+  }
+
+  void _showAddComicDialog() async {
+    final pickedImage =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (pickedImage != null) {
+      setState(() {
+        imagePath = pickedImage.path;
+      });
+    }
+
     showDialog(
       context: context,
       builder: (context) {
@@ -54,6 +101,9 @@ class _ComicLibraryState extends State<ComicLibrary> {
                 controller: genreController,
                 decoration: const InputDecoration(labelText: 'Genre'),
               ),
+              imagePath != null
+                  ? Image.file(File(imagePath!))
+                  : Container(), // Display the image if picked
             ],
           ),
           actions: [
@@ -63,12 +113,15 @@ class _ComicLibraryState extends State<ComicLibrary> {
                   comics.add({
                     'title': titleController.text,
                     'author': authorController.text,
-                    'genre': genreController.text
+                    'genre': genreController.text,
+                    'image': imagePath, // Save image path
                   });
                   titleController.clear();
                   authorController.clear();
                   genreController.clear();
+                  imagePath = null; // Reset image path after adding comic
                 });
+                _saveComics();
                 Navigator.of(context).pop();
               },
               child: const Text('Add'),
@@ -90,6 +143,7 @@ class _ComicLibraryState extends State<ComicLibrary> {
     setState(() {
       comics.removeAt(index);
     });
+    _saveComics();
   }
 
   @override
@@ -99,6 +153,7 @@ class _ComicLibraryState extends State<ComicLibrary> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text("Hold to Delete"),
           const SizedBox(height: 20),
           Expanded(
             child: GridView.builder(
@@ -148,6 +203,12 @@ class _ComicLibraryState extends State<ComicLibrary> {
                               comics[index]['genre']!,
                               style: const TextStyle(fontSize: 12),
                             ),
+                            comics[index]['image'] != null
+                                ? Image.file(
+                                    File(comics[index]['image']),
+                                    height: 100,
+                                  )
+                                : Container(),
                           ],
                         ),
                       ),
